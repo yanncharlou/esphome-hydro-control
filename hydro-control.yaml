@@ -1,0 +1,274 @@
+# PH Calibration (no way to make it from device by now)
+substitutions:
+  ph_918: "2.484"
+  ph_686: "1.76"
+  ph_401: "0.475"
+
+#EC calibration is set directly in sensor parameters
+
+esphome:
+  name: hydro-control-1
+  friendly_name: Contrôle Hydroponique 1
+  compile_process_limit: 1
+
+esp8266:
+  board: d1
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: !secret api_encryption_key
+
+ota:
+  password: !secret ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "Test1 Fallback Hotspot"
+    password: !secret fallback_hotspot_password
+
+captive_portal:
+
+# globals
+globals:
+  # EC calibration (raw value with only median filter)
+  - id: ec_raw_median
+    type: float
+    restore_value: no
+    initial_value: '0.0'
+
+  # PH calibration (raw value with only median filter)
+  - id: ph_raw_median
+    type: float
+    restore_value: no
+    initial_value: '0.0'
+
+
+
+# Buses
+i2c:
+  #sda: GPIO4 #D2
+  #scl: GPIO5 #D1
+  scan: True
+  id: bus_a
+  frequency: 800kHz
+
+dallas:
+  - pin: D5
+
+# Periphériques I2C
+ads1115:
+  - address: 0x48
+
+# Ecran
+font:
+  - file:
+      type: gfonts
+      family: Roboto
+      weight: 400
+    id: roboto
+    size: 16
+    glyphs:
+      ['&', '@', '!', ',', '.', '"', '%', '(', ')', '+', '-', '_', ':', '°', '0',
+       '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E',
+       'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S',
+       'T', 'U', 'V', 'W', 'X', 'Y', 'Z', ' ', 'a', 'b', 'c', 'd', 'e', 'f',
+       'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't',
+       'u', 'v', 'w', 'x', 'y', 'z','å', 'ä', 'ö', '/', '>']
+
+display:
+  - platform: ssd1306_i2c
+    model: "SH1106 128x64"
+    address: 0x3C
+    update_interval: 2s
+    contrast: 60%
+    auto_clear_enabled: true
+    id: main_display
+    pages:
+    - id: page1
+      lambda: |-
+        it.printf(0, 0, id(roboto), "PH : %.5f", id(ph_sensor).state );
+        it.printf(0, 16, id(roboto), "EC : %.5f", id(ec_sensor).state );
+        it.printf(0, 32, id(roboto), "TH : %.5f °C", id(temperature_sensor).state );
+    - id: page2
+      lambda: |-
+        it.printf(0, 0, id(roboto), "PHmv: %.5f", id(ph_raw_median) );
+        it.printf(0, 16, id(roboto), "ECmv: %.5f", id(ec_raw_median) );
+
+# Sensors
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: D0
+      mode:
+        input: true
+        pullup: true
+    name: page suivante
+    id: next_page_btn
+    filters:
+      - delayed_on: 10ms
+      - delayed_off: 10ms
+    on_press:
+      then:
+        - display.page.show_next: main_display
+        - component.update: main_display
+
+  # empty tank alert triggered by extremely low EC.
+  - platform: template
+    name: "Empty tank alert"
+    id: empty_tank_alert
+    lambda: |-
+      return id(ec_sensor).state < 100;
+
+sensor:
+  - platform: ads1115
+    multiplexer: 'A0_GND'
+    gain: 4.096
+    name: "PH"
+    update_interval: 2s
+    id: ph_sensor
+    accuracy_decimals: 2
+    filters:
+      - sliding_window_moving_average:
+          window_size: 10
+          send_every: 1
+          send_first_at: 1
+      - lambda: |-
+          id(ph_raw_median) = x;
+          return x;
+      - calibrate_linear:
+          # Map v (from sensor) -> PH (true value)
+          - ${ph_918} -> 9.18
+          - ${ph_686} -> 6.86
+          - ${ph_401} -> 4.01
+
+  - platform: ads1115
+    multiplexer: 'A1_GND'
+    gain: 4.096
+    name: "EC"
+    update_interval: 1s
+    id: ec_sensor
+    accuracy_decimals: 0
+    filters:
+      - median:
+          window_size: 30
+          send_every: 1
+          send_first_at: 1
+      - lambda: |-
+            id(ec_raw_median) = x;
+            float compensationCoefficient = 1.0 + 0.02 * (id(temperature_sensor).state - 25.0); //temperature compensation formula: fFinalResult(25^C) = fFinalResult(current)/(1.0+0.02*(fTP-25.0));
+            float compensationVoltage = x / compensationCoefficient; //temperature compensation
+            float tdsValue = (133.42 * compensationVoltage * compensationVoltage * compensationVoltage - 255.86 * compensationVoltage * compensationVoltage + 857.39 * compensationVoltage) * 0.5; //convert voltage value to tds value
+            return tdsValue * 2.18; // Comparaison empirique avec mon ec mètre.
+
+  - platform: dallas
+    address: 0xa6b297791f64ff28
+    name: "Temperature"
+    id: temperature_sensor
+
+# Outputs
+
+switch:
+  - platform: gpio
+    pin: 
+      number: GPIO12
+    id: pump_1
+    name: "Pompe PH-"
+    icon: "mdi:water-plus"
+    on_turn_on:
+    - delay: !lambda 'return 1000 * id(ph_pulse_s).state;'
+    - switch.turn_off: pump_1
+
+  - platform: gpio
+    pin: 
+      number: GPIO13
+    id: pump_2
+    name: "Pompe nutrient A"
+    icon: "mdi:water-plus"
+    on_turn_on:
+    - delay: !lambda 'return 1000 * id(nutrient_a_pulse_s).state;'
+    - switch.turn_off: pump_2
+
+  - platform: gpio
+    pin: 
+      number: GPIO15
+    id: pump_3
+    name: "Pompe nutrient B"
+    icon: "mdi:water-plus"
+    on_turn_on:
+    - delay: !lambda 'return 1000 * id(nutrient_b_pulse_s).state;'
+    - switch.turn_off: pump_3
+
+
+# HA Input
+button:
+  - platform: template
+    name: Ecran - page suivante
+    id: next_page_ha_btn
+    icon: "mdi:page-next"
+    on_press:
+      then:
+        - display.page.show_next: main_display
+        - component.update: main_display
+
+  - platform: template
+    id: ph_pulse_btn
+    name: "Pulse PH-"
+    icon: "mdi:water-plus"
+    on_press:
+    - switch.turn_on: pump_1
+    - delay: !lambda 'return 1000 * id(ph_pulse_s).state;'
+    - switch.turn_off: pump_1
+
+  - platform: template
+    id: nutrient_pulse_btn
+    name: "Pulse A+B nutrient"
+    icon: "mdi:water-plus"
+    on_press:
+    - switch.turn_on: pump_2
+    - delay: !lambda 'return 1000 * id(nutrient_a_pulse_s).state;'
+    - switch.turn_off: pump_2
+    - switch.turn_on: pump_3
+    - delay: !lambda 'return 1000 * id(nutrient_b_pulse_s).state;'
+    - switch.turn_off: pump_3
+
+number:
+  - platform: template
+    name: PH pulse (s)
+    id: ph_pulse_s
+    min_value: 0
+    max_value: 30
+    step: 1
+    unit_of_measurement: s
+    optimistic: true
+    restore_value: true
+    initial_value: 5
+
+  - platform: template
+    name: Nutrient A pulse (s)
+    id: nutrient_a_pulse_s
+    min_value: 0
+    max_value: 25
+    step: 1
+    unit_of_measurement: s
+    optimistic: true
+    restore_value: true
+    initial_value: 5
+
+  - platform: template
+    name: Nutrient B pulse (s)
+    id: nutrient_b_pulse_s
+    min_value: 0
+    max_value: 25
+    step: 1
+    unit_of_measurement: s
+    optimistic: true
+    restore_value: true
+    initial_value: 3
