@@ -1,0 +1,73 @@
+title: Hydroponie
+views:
+  - path: default_view
+    title: Home
+    cards:
+      - type: horizontal-stack
+        cards:
+          - type: gauge
+            entity: sensor.hydro_control_1_ec
+            max: 2000
+            needle: false
+            name: EC
+            unit: ' '
+            gauge_template: '{{ states.sensor.hydro_control_1_ec.state  | round(0) }}'
+          - type: gauge
+            entity: sensor.hydro_control_1_ph
+            max: 14
+            needle: false
+            name: PH
+            unit: ' '
+          - type: gauge
+            entity: sensor.hydro_control_1_temperature_2
+            max: 35
+            name: Température
+      - type: tile
+        entity: binary_sensor.hydro_control_1_empty_tank_alert
+        name: Empty tank alert
+        icon: mdi:alarm-light
+        show_entity_picture: false
+        color: red
+      - type: entities
+        entities:
+          - entity: binary_sensor.hydro_control_1_empty_tank_alert
+            name: Empty tank alert
+            icon: mdi:alarm-light-outline
+          - entity: button.hydro_control_1_pulse_ab_nutrient
+            name: Pulse A+B nutrient
+          - entity: button.hydro_control_1_pulse_ph
+            name: Pulse PH-
+          - entity: switch.hydro_control_1_pompe_nutrient_a
+          - entity: number.hydro_control_1_nutrient_a_pulse_s
+          - entity: switch.hydro_control_1_pompe_nutrient_b
+          - entity: number.hydro_control_1_nutrient_b_pulse_s
+          - entity: switch.hydro_control_1_pompe_ph
+          - entity: number.hydro_control_1_ph_pulse_s
+          - entity: button.hydro_control_1_ecran_page_suivante
+            name: Page suivante
+      - type: vertical-stack
+        cards:
+          - graph: line
+            type: sensor
+            entity: sensor.hydro_control_1_ec
+            detail: 2
+            unit: ' '
+            hours_to_show: 48
+            name: EC
+            icon: mdi:cup-water
+          - graph: line
+            type: sensor
+            entity: sensor.hydro_control_1_ph
+            detail: 2
+            unit: ' '
+            hours_to_show: 48
+            name: PH
+            icon: mdi:cup-water
+          - graph: line
+            type: sensor
+            entity: sensor.hydro_control_1_temperature_2
+            detail: 2
+            unit: ' '
+            hours_to_show: 48
+            name: Température
+            icon: mdi:cup-water
