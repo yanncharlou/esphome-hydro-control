@@ -4,6 +4,13 @@ substitutions:
   ph_686: "1.76"
   ph_401: "0.475"
 
+  # 60s = 93.5ml -> ratio = 60000 / 93.5 = 645.2
+  pump1_ml_to_ms_ratio: "645.2"
+  # 60s = 103.8ml -> ratio = 60000 / 103.8 = 578.03
+  pump2_ml_to_ms_ratio: "578.03"
+  # 60s = 98.4 -> ratio = 60000 / 98.4 == 609.76
+  pump3_ml_to_ms_ratio: "609.76"
+
 #EC calibration is set directly in sensor parameters
 
 esphome:
@@ -81,7 +88,7 @@ font:
        'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S',
        'T', 'U', 'V', 'W', 'X', 'Y', 'Z', ' ', 'a', 'b', 'c', 'd', 'e', 'f',
        'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't',
-       'u', 'v', 'w', 'x', 'y', 'z','å', 'ä', 'ö', '/', '>']
+       'u', 'v', 'w', 'x', 'y', 'z','å', 'ä', 'ö', '/', '>','µ']
 
 display:
   - platform: ssd1306_i2c
@@ -94,9 +101,17 @@ display:
     pages:
     - id: page1
       lambda: |-
-        it.printf(0, 0, id(roboto), "PH : %.5f", id(ph_sensor).state );
-        it.printf(0, 16, id(roboto), "EC : %.5f", id(ec_sensor).state );
-        it.printf(0, 32, id(roboto), "TH : %.5f °C", id(temperature_sensor).state );
+        it.printf(0, 0, id(roboto), "PH : %.2f", id(ph_sensor).state );
+        it.printf(0, 16, id(roboto), "EC : %.0f µS/cm", id(ec_sensor).state );
+        it.printf(0, 32, id(roboto), "TH : %.1f °C", id(temperature_sensor).state );
+        if (id(ph_minus_pulse).is_running()) {
+          it.filled_rectangle(0, 48, 48, 16, COLOR_ON);
+          it.print(0, 48, id(roboto), COLOR_OFF, "PH-");
+        }
+        if (id(nutrient_pulse).is_running()) {
+          it.filled_rectangle(50, 48, 48, 16, COLOR_ON);
+          it.print(50, 48, id(roboto), COLOR_OFF, "EC+");
+        }
     - id: page2
       lambda: |-
         it.printf(0, 0, id(roboto), "PHmv: %.5f", id(ph_raw_median) );
@@ -166,6 +181,7 @@ sensor:
             float compensationCoefficient = 1.0 + 0.02 * (id(temperature_sensor).state - 25.0); //temperature compensation formula: fFinalResult(25^C) = fFinalResult(current)/(1.0+0.02*(fTP-25.0));
             float compensationVoltage = x / compensationCoefficient; //temperature compensation
             float tdsValue = (133.42 * compensationVoltage * compensationVoltage * compensationVoltage - 255.86 * compensationVoltage * compensationVoltage + 857.39 * compensationVoltage) * 0.5; //convert voltage value to tds value
+            //return tdsValue / 0.64;
             return tdsValue * 2.18; // Comparaison empirique avec mon ec mètre.
 
   - platform: dallas
@@ -176,36 +192,43 @@ sensor:
 # Outputs
 
 switch:
+  # Pump #1 : PH-
   - platform: gpio
     pin: 
       number: GPIO12
     id: pump_1
     name: "Pompe PH-"
     icon: "mdi:water-plus"
-    on_turn_on:
-    - delay: !lambda 'return 1000 * id(ph_pulse_s).state;'
-    - switch.turn_off: pump_1
-
+    
+  # Pump #2 : Nutrient A
   - platform: gpio
     pin: 
       number: GPIO13
     id: pump_2
     name: "Pompe nutrient A"
     icon: "mdi:water-plus"
-    on_turn_on:
-    - delay: !lambda 'return 1000 * id(nutrient_a_pulse_s).state;'
-    - switch.turn_off: pump_2
-
+    
+  # Pump #3 : Nutrient B
   - platform: gpio
     pin: 
       number: GPIO15
     id: pump_3
     name: "Pompe nutrient B"
     icon: "mdi:water-plus"
-    on_turn_on:
-    - delay: !lambda 'return 1000 * id(nutrient_b_pulse_s).state;'
-    - switch.turn_off: pump_3
+    
+  - platform: template
+    name: "PH regulation"
+    id: ph_regulation_enabled
+    icon: "mdi:auto-fix"
+    optimistic : true
+    restore_mode: "RESTORE_DEFAULT_ON"
 
+  - platform: template
+    name: "Nutrient regulation"
+    id: nutrient_regulation_enabled
+    icon: "mdi:auto-fix"
+    optimistic : true
+    restore_mode: "RESTORE_DEFAULT_ON"
 
 # HA Input
 button:
@@ -223,52 +246,147 @@ button:
     name: "Pulse PH-"
     icon: "mdi:water-plus"
     on_press:
-    - switch.turn_on: pump_1
-    - delay: !lambda 'return 1000 * id(ph_pulse_s).state;'
-    - switch.turn_off: pump_1
+      - script.execute: ph_minus_pulse
 
   - platform: template
     id: nutrient_pulse_btn
     name: "Pulse A+B nutrient"
     icon: "mdi:water-plus"
     on_press:
-    - switch.turn_on: pump_2
-    - delay: !lambda 'return 1000 * id(nutrient_a_pulse_s).state;'
-    - switch.turn_off: pump_2
-    - switch.turn_on: pump_3
-    - delay: !lambda 'return 1000 * id(nutrient_b_pulse_s).state;'
-    - switch.turn_off: pump_3
+      - script.execute: nutrient_pulse
+
+  - platform: template
+    id: pump_1_calibration_pulse
+    name: "Pump 1 calibration pulse"
+    icon: "mdi:water-plus"
+    on_press:
+      - switch.turn_on: pump_1
+      - delay: 1min
+      - switch.turn_off: pump_1
+
+  - platform: template
+    id: pump_2_calibration_pulse
+    name: "Pump 2 calibration pulse"
+    icon: "mdi:water-plus"
+    on_press:
+      - switch.turn_on: pump_2
+      - delay: 1min
+      - switch.turn_off: pump_2
+
+  - platform: template
+    id: pump_3_calibration_pulse
+    name: "Pump 3 calibration pulse"
+    icon: "mdi:water-plus"
+    on_press:
+      - switch.turn_on: pump_3
+      - delay: 1min
+      - switch.turn_off: pump_3
 
 number:
+
+  - platform: template
+    name: PH high trigger
+    id: ph_high_trigger
+    min_value: 4
+    max_value: 9
+    step: 0.1
+    optimistic: true
+    restore_value: true
+    initial_value: 6.2
+
+  - platform: template
+    name: EC low trigger
+    id: ec_low_trigger
+    min_value: 0
+    max_value: 3000
+    step: 100
+    optimistic: true
+    restore_value: true
+    initial_value: 1200
+
   - platform: template
     name: PH pulse (s)
-    id: ph_pulse_s
+    id: ph_pulse_ml
     min_value: 0
     max_value: 30
     step: 1
-    unit_of_measurement: s
+    unit_of_measurement: ml
     optimistic: true
     restore_value: true
-    initial_value: 5
+    initial_value: 20
 
   - platform: template
     name: Nutrient A pulse (s)
-    id: nutrient_a_pulse_s
+    id: nutrient_a_pulse_ml
     min_value: 0
-    max_value: 25
+    max_value: 30
     step: 1
-    unit_of_measurement: s
+    unit_of_measurement: ml
     optimistic: true
     restore_value: true
-    initial_value: 5
+    initial_value: 25
 
   - platform: template
     name: Nutrient B pulse (s)
-    id: nutrient_b_pulse_s
+    id: nutrient_b_pulse_ml
     min_value: 0
-    max_value: 25
+    max_value: 30
     step: 1
-    unit_of_measurement: s
+    unit_of_measurement: ml
     optimistic: true
     restore_value: true
-    initial_value: 3
+    initial_value: 35
+
+
+script:
+  # PH minus pulse sequence
+  - id: ph_minus_pulse
+    mode: single
+    then:
+      - switch.turn_on: pump_1
+      - delay: !lambda 'return id(ph_pulse_ml).state * ${pump1_ml_to_ms_ratio};'
+      - switch.turn_off: pump_1
+      # 30s minimum delay before trying adding again.
+      - delay: 30s
+
+  # Nutrient A+B pulse sequence
+  - id: nutrient_pulse
+    mode: single
+    then:
+      - switch.turn_on: pump_2
+      - delay: !lambda 'return id(nutrient_a_pulse_ml).state * ${pump2_ml_to_ms_ratio};'
+      - switch.turn_off: pump_2
+      - switch.turn_on: pump_3
+      - delay: !lambda 'return id(nutrient_b_pulse_ml).state * ${pump3_ml_to_ms_ratio};'
+      - switch.turn_off: pump_3      
+      # 30s minimum delay before trying adding again.
+      - delay: 30s
+
+
+interval:
+
+  # PH check loop
+  - interval: 1min
+    then:
+      if:
+        condition:
+          - switch.is_on: ph_regulation_enabled
+          - lambda: 'return id(ph_sensor).state > id(ph_high_trigger).state;'
+          - binary_sensor.is_off: empty_tank_alert
+          - not:
+            - script.is_running: ph_minus_pulse
+        then:
+          script.execute: ph_minus_pulse
+
+  # EC check loop
+  - interval: 1min
+    then:
+      if:
+        condition:
+          - switch.is_on: nutrient_regulation_enabled
+          - lambda: 'return id(ec_sensor).state < id(ec_low_trigger).state;'
+          - binary_sensor.is_off: empty_tank_alert
+          - not:
+            - script.is_running: nutrient_pulse
+        then:
+          script.execute: nutrient_pulse
