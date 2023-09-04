@@ -1,7 +1,8 @@
 title: Hydroponie
 views:
   - path: default_view
-    title: Home
+    title: Pots BATO
+    badges: []
     cards:
       - type: horizontal-stack
         cards:
@@ -28,23 +29,6 @@ views:
         icon: mdi:alarm-light
         show_entity_picture: false
         color: red
-      - type: entities
-        entities:
-          - entity: binary_sensor.hydro_control_1_empty_tank_alert
-            name: Empty tank alert
-            icon: mdi:alarm-light-outline
-          - entity: button.hydro_control_1_pulse_ab_nutrient
-            name: Pulse A+B nutrient
-          - entity: button.hydro_control_1_pulse_ph
-            name: Pulse PH-
-          - entity: switch.hydro_control_1_pompe_nutrient_a
-          - entity: number.hydro_control_1_nutrient_a_pulse_s
-          - entity: switch.hydro_control_1_pompe_nutrient_b
-          - entity: number.hydro_control_1_nutrient_b_pulse_s
-          - entity: switch.hydro_control_1_pompe_ph
-          - entity: number.hydro_control_1_ph_pulse_s
-          - entity: button.hydro_control_1_ecran_page_suivante
-            name: Page suivante
       - type: vertical-stack
         cards:
           - graph: line
@@ -71,3 +55,63 @@ views:
             hours_to_show: 48
             name: Température
             icon: mdi:cup-water
+      - type: entities
+        entities:
+          - entity: button.hydro_control_1_pulse_ab_nutrient
+            name: Pulse A+B nutrient
+          - entity: button.hydro_control_1_pulse_ph
+            name: Pulse PH-
+          - type: divider
+            style:
+              height: 1px
+              width: 80%
+              margin-left: auto
+              margin-right: auto
+              background: var(--divider-color,#e0e0e0)
+          - entity: button.hydro_control_1_pump_1_calibration_pulse
+            name: 'Pump #1 calibration pulse'
+          - entity: button.hydro_control_1_pump_2_calibration_pulse
+            name: 'Pump #2 calibration pulse'
+          - entity: button.hydro_control_1_pump_3_calibration_pulse
+            name: 'Pump #3 calibration pulse'
+          - type: divider
+            style:
+              height: 1px
+              width: 80%
+              margin-left: auto
+              margin-right: auto
+              background: var(--divider-color,#e0e0e0)
+          - entity: switch.hydro_control_1_pompe_ph
+          - entity: switch.hydro_control_1_pompe_nutrient_a
+          - entity: switch.hydro_control_1_pompe_nutrient_b
+          - type: divider
+            style:
+              height: 1px
+              width: 80%
+              margin-left: auto
+              margin-right: auto
+              background: var(--divider-color,#e0e0e0)
+          - entity: button.hydro_control_1_ecran_page_suivante
+            name: Page suivante
+        state_color: false
+        title: Contrôle direct
+        show_header_toggle: false
+      - type: entities
+        entities:
+          - entity: switch.hydro_control_1_ph_regulation
+            name: Régulation PH
+          - entity: switch.hydro_control_1_nutrient_regulation
+            name: Régulation EC
+          - entity: number.hydro_control_1_ph_high_trigger
+            name: PH high trigger
+          - entity: number.hydro_control_1_ec_low_trigger
+            name: EC low trigger
+          - entity: number.hydro_control_1_ph_pulse_s
+            name: PH pulse
+          - entity: number.hydro_control_1_nutrient_a_pulse_s
+            name: Nutrient A pulse
+          - entity: number.hydro_control_1_nutrient_b_pulse_s
+            name: Nutrient B pulse
+        state_color: false
+        title: Régulation
+        show_header_toggle: false
