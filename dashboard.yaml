@@ -23,12 +23,25 @@ views:
             entity: sensor.hydro_control_1_temperature_2
             max: 35
             name: Température
-      - type: tile
-        entity: binary_sensor.hydro_control_1_empty_tank_alert
-        name: Empty tank alert
-        icon: mdi:alarm-light
-        show_entity_picture: false
-        color: red
+      - type: horizontal-stack
+        cards:
+          - type: tile
+            entity: binary_sensor.hydro_control_1_empty_tank_alert
+            icon: mdi:cup-outline
+            show_entity_picture: false
+            color: accent
+            vertical: true
+            name: Tank vide
+          - type: tile
+            entity: binary_sensor.hydro_control_1_ph_error
+            color: accent
+            vertical: true
+            name: PH error
+          - type: tile
+            entity: binary_sensor.hydro_control_1_ec_error
+            color: accent
+            vertical: true
+            name: EC error
       - type: vertical-stack
         cards:
           - graph: line
@@ -62,12 +75,6 @@ views:
           - entity: button.hydro_control_1_pulse_ph
             name: Pulse PH-
           - type: divider
-            style:
-              height: 1px
-              width: 80%
-              margin-left: auto
-              margin-right: auto
-              background: var(--divider-color,#e0e0e0)
           - entity: button.hydro_control_1_pump_1_calibration_pulse
             name: 'Pump #1 calibration pulse'
           - entity: button.hydro_control_1_pump_2_calibration_pulse
@@ -75,22 +82,15 @@ views:
           - entity: button.hydro_control_1_pump_3_calibration_pulse
             name: 'Pump #3 calibration pulse'
           - type: divider
-            style:
-              height: 1px
-              width: 80%
-              margin-left: auto
-              margin-right: auto
-              background: var(--divider-color,#e0e0e0)
           - entity: switch.hydro_control_1_pompe_ph
+            name: NE PAS UTILISER - Pompe PH-
           - entity: switch.hydro_control_1_pompe_nutrient_a
+            name: NE PAS UTILISER - Pompe nut. A
           - entity: switch.hydro_control_1_pompe_nutrient_b
+            name: NE PAS UTILISER - Pompe nut. B
+          - entity: switch.hydro_control_1_mixer
+            name: Mélangeur
           - type: divider
-            style:
-              height: 1px
-              width: 80%
-              margin-left: auto
-              margin-right: auto
-              background: var(--divider-color,#e0e0e0)
           - entity: button.hydro_control_1_ecran_page_suivante
             name: Page suivante
         state_color: false
@@ -102,16 +102,37 @@ views:
             name: Régulation PH
           - entity: switch.hydro_control_1_nutrient_regulation
             name: Régulation EC
+          - type: section
+            label: Trigger levels
           - entity: number.hydro_control_1_ph_high_trigger
             name: PH high trigger
           - entity: number.hydro_control_1_ec_low_trigger
             name: EC low trigger
-          - entity: number.hydro_control_1_ph_pulse_s
+          - type: section
+            label: Pulse quantities
+          - entity: number.hydro_control_1_ph_pulse
             name: PH pulse
-          - entity: number.hydro_control_1_nutrient_a_pulse_s
+          - entity: number.hydro_control_1_nutrient_a_pulse
             name: Nutrient A pulse
-          - entity: number.hydro_control_1_nutrient_b_pulse_s
+          - entity: number.hydro_control_1_nutrient_b_pulse
             name: Nutrient B pulse
+          - type: section
+            label: Error levels
+          - entity: number.hydro_control_1_ph_error_below
+            name: PH min
+          - entity: number.hydro_control_1_ph_error_over
+            name: PH max
+          - entity: number.hydro_control_1_ec_error_below
+            name: EC min
+          - entity: number.hydro_control_1_ec_error_over
+            name: EC max
         state_color: false
         title: Régulation
         show_header_toggle: false
+  - title: TESTS
+    path: tests
+    badges: []
+    cards:
+      - type: entities
+        entities:
+          - switch.test2_mlangeur
