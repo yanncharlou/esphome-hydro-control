@@ -1,8 +1,8 @@
 # PH Calibration (no way to make it from device by now)
 substitutions:
-  ph_918: "2.484"
-  ph_686: "1.76"
-  ph_401: "0.475"
+  ph_918: "2.517"
+  ph_686: "1.82"
+  ph_401: "0.62"
 
   # 60s = 93.5ml -> ratio = 60000 / 93.5 = 645.2
   pump1_ml_to_ms_ratio: "645.2"
@@ -107,10 +107,16 @@ display:
         if (id(ph_minus_pulse).is_running()) {
           it.filled_rectangle(0, 48, 48, 16, COLOR_ON);
           it.print(0, 48, id(roboto), COLOR_OFF, "PH-");
+        }else if(id(ph_error).state){
+          it.filled_rectangle(0, 48, 48, 16, COLOR_ON);
+          it.print(0, 48, id(roboto), COLOR_OFF, "PH KO");
         }
         if (id(nutrient_pulse).is_running()) {
           it.filled_rectangle(50, 48, 48, 16, COLOR_ON);
           it.print(50, 48, id(roboto), COLOR_OFF, "EC+");
+        }else if(id(ec_error).state){
+          it.filled_rectangle(0, 48, 48, 16, COLOR_ON);
+          it.print(50, 48, id(roboto), COLOR_OFF, "EC KO");
         }
     - id: page2
       lambda: |-
@@ -141,6 +147,20 @@ binary_sensor:
     id: empty_tank_alert
     lambda: |-
       return id(ec_sensor).state < 100;
+
+  # Error status
+  - platform: template
+    name: "PH Error"
+    id: ph_error
+    lambda: |-
+      return (id(ph_sensor).state < id(ph_error_below).state) || (id(ph_sensor).state > id(ph_error_over).state);
+
+  - platform: template
+    name: "EC Error"
+    id: ec_error
+    lambda: |-
+      return (id(ec_sensor).state < id(ec_error_below).state) || (id(ec_sensor).state > id(ec_error_over).state);
+
 
 sensor:
   - platform: ads1115
@@ -215,7 +235,15 @@ switch:
     id: pump_3
     name: "Pompe nutrient B"
     icon: "mdi:water-plus"
-    
+
+  # Mixer
+  - platform: gpio
+    pin: 
+      number: GPIO0
+    id: mixer
+    name: "Mixer"
+    icon: "mdi:bowl-mix"
+
   - platform: template
     name: "PH regulation"
     id: ph_regulation_enabled
@@ -305,7 +333,7 @@ number:
     initial_value: 1200
 
   - platform: template
-    name: PH pulse (s)
+    name: PH pulse
     id: ph_pulse_ml
     min_value: 0
     max_value: 30
@@ -316,27 +344,66 @@ number:
     initial_value: 20
 
   - platform: template
-    name: Nutrient A pulse (s)
+    name: Nutrient A pulse
     id: nutrient_a_pulse_ml
     min_value: 0
     max_value: 30
-    step: 1
+    step: 0.1
     unit_of_measurement: ml
     optimistic: true
     restore_value: true
     initial_value: 25
 
   - platform: template
-    name: Nutrient B pulse (s)
+    name: Nutrient B pulse
     id: nutrient_b_pulse_ml
     min_value: 0
     max_value: 30
-    step: 1
+    step: 0.1
     unit_of_measurement: ml
     optimistic: true
     restore_value: true
     initial_value: 35
 
+  - platform: template
+    name: PH error below
+    id: ph_error_below
+    min_value: 4
+    max_value: 9
+    step: 0.1
+    optimistic: true
+    restore_value: true
+    initial_value: 5
+
+  - platform: template
+    name: PH error over
+    id: ph_error_over
+    min_value: 4
+    max_value: 9
+    step: 0.1
+    optimistic: true
+    restore_value: true
+    initial_value: 5
+
+  - platform: template
+    name: EC error below
+    id: ec_error_below
+    min_value: 0
+    max_value: 3000
+    step: 100
+    optimistic: true
+    restore_value: true
+    initial_value: 300
+
+  - platform: template
+    name: EC error over
+    id: ec_error_over
+    min_value: 0
+    max_value: 3000
+    step: 100
+    optimistic: true
+    restore_value: true
+    initial_value: 1900
 
 script:
   # PH minus pulse sequence
@@ -373,6 +440,7 @@ interval:
           - switch.is_on: ph_regulation_enabled
           - lambda: 'return id(ph_sensor).state > id(ph_high_trigger).state;'
           - binary_sensor.is_off: empty_tank_alert
+          - binary_sensor.is_off: ph_error
           - not:
             - script.is_running: ph_minus_pulse
         then:
@@ -386,6 +454,7 @@ interval:
           - switch.is_on: nutrient_regulation_enabled
           - lambda: 'return id(ec_sensor).state < id(ec_low_trigger).state;'
           - binary_sensor.is_off: empty_tank_alert
+          - binary_sensor.is_off: ec_error
           - not:
             - script.is_running: nutrient_pulse
         then:
