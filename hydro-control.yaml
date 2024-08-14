@@ -1,8 +1,8 @@
 # PH Calibration (no way to make it from device by now)
 substitutions:
-  ph_918: "2.517"
+  ph_918: "2.62"
   ph_686: "1.82"
-  ph_401: "0.62"
+  ph_401: "0.541"
 
   # 60s = 93.5ml -> ratio = 60000 / 93.5 = 645.2
   pump1_ml_to_ms_ratio: "645.2"
@@ -30,7 +30,8 @@ api:
     key: !secret api_encryption_key
 
 ota:
-  password: !secret ota_password
+  - platform: esphome
+    password: !secret ota_password
 
 wifi:
   ssid: !secret wifi_ssid
@@ -67,8 +68,9 @@ i2c:
   id: bus_a
   frequency: 800kHz
 
-dallas:
-  - pin: D5
+one_wire:
+  - platform: gpio
+    pin: D5
 
 # Periphériques I2C
 ads1115:
@@ -204,7 +206,7 @@ sensor:
             //return tdsValue / 0.64;
             return tdsValue * 2.18; // Comparaison empirique avec mon ec mètre.
 
-  - platform: dallas
+  - platform: dallas_temp
     address: 0xa6b297791f64ff28
     name: "Temperature"
     id: temperature_sensor
@@ -341,7 +343,7 @@ number:
     unit_of_measurement: ml
     optimistic: true
     restore_value: true
-    initial_value: 20
+    initial_value: 5
 
   - platform: template
     name: Nutrient A pulse
@@ -358,7 +360,7 @@ number:
     name: Nutrient B pulse
     id: nutrient_b_pulse_ml
     min_value: 0
-    max_value: 30
+    max_value: 40
     step: 0.1
     unit_of_measurement: ml
     optimistic: true
