@@ -1,8 +1,10 @@
 # PH Calibration (no way to make it from device by now)
 substitutions:
-  ph_918: "2.62"
-  ph_686: "1.82"
-  ph_401: "0.541"
+  #ph_918: "2.62"
+  #ph_686: "1.82"
+  ph_7: "1.84"
+  ph_4: "0.516"
+  #ph_401: "0.541"
 
   # 60s = 93.5ml -> ratio = 60000 / 93.5 = 645.2
   pump1_ml_to_ms_ratio: "645.2"
@@ -182,9 +184,11 @@ sensor:
           return x;
       - calibrate_linear:
           # Map v (from sensor) -> PH (true value)
-          - ${ph_918} -> 9.18
-          - ${ph_686} -> 6.86
-          - ${ph_401} -> 4.01
+          #- ${ph_918} -> 9.18
+          #- ${ph_686} -> 6.86
+          - ${ph_7} -> 7.0
+          #- ${ph_401} -> 4.01
+          - ${ph_4} -> 4.0
 
   - platform: ads1115
     multiplexer: 'A1_GND'
