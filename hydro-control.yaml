@@ -60,8 +60,6 @@ globals:
     restore_value: no
     initial_value: '0.0'
 
-
-
 # Buses
 i2c:
   #sda: GPIO4 #D2
@@ -264,6 +262,13 @@ switch:
     optimistic : true
     restore_mode: "RESTORE_DEFAULT_ON"
 
+  - platform: template
+    name: "Mixer loop"
+    id: mixer_loop_enabled
+    icon: "mdi:bowl-mix"
+    optimistic: True
+    restore_mode: RESTORE_DEFAULT_ON
+
 # HA Input
 button:
   - platform: template
@@ -416,6 +421,7 @@ script:
   - id: ph_minus_pulse
     mode: single
     then:
+      - script.execute: mixer_pulse # launch mixer to ensure good measure after adding product
       - switch.turn_on: pump_1
       - delay: !lambda 'return id(ph_pulse_ml).state * ${pump1_ml_to_ms_ratio};'
       - switch.turn_off: pump_1
@@ -426,6 +432,7 @@ script:
   - id: nutrient_pulse
     mode: single
     then:
+      - script.execute: mixer_pulse # launch mixer to ensure good measure after adding product
       - switch.turn_on: pump_2
       - delay: !lambda 'return id(nutrient_a_pulse_ml).state * ${pump2_ml_to_ms_ratio};'
       - switch.turn_off: pump_2
@@ -435,6 +442,13 @@ script:
       # 30s minimum delay before trying adding again.
       - delay: 30s
 
+  # Mixer pulse
+  - id: mixer_pulse
+    mode: restart
+    then:
+      - switch.turn_on: mixer
+      - delay: 5min
+      - switch.turn_off: mixer
 
 interval:
 
@@ -465,3 +479,14 @@ interval:
             - script.is_running: nutrient_pulse
         then:
           script.execute: nutrient_pulse
+
+  # Mixer loop
+  - interval: 60min
+    then:
+      if:
+        condition:
+          - switch.is_on: mixer_loop_enabled
+          - binary_sensor.is_off: empty_tank_alert
+          - binary_sensor.is_off: ec_error
+        then:
+          script.execute: mixer_pulse
