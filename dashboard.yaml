@@ -70,7 +70,7 @@ views:
             icon: mdi:cup-water
       - type: entities
         entities:
-          - entity: button.hydro_control_1_pulse_ab_nutrient
+          - entity: button.hydro_control_1_pulse_a_b_nutrient
             name: Pulse A+B nutrient
           - entity: button.hydro_control_1_pulse_ph
             name: Pulse PH-
@@ -102,6 +102,8 @@ views:
             name: Régulation PH
           - entity: switch.hydro_control_1_nutrient_regulation
             name: Régulation EC
+          - entity: switch.hydro_control_1_mixer_loop
+            name: Mixer loop
           - type: section
             label: Trigger levels
           - entity: number.hydro_control_1_ph_high_trigger
@@ -129,10 +131,3 @@ views:
         state_color: false
         title: Régulation
         show_header_toggle: false
-  - title: TESTS
-    path: tests
-    badges: []
-    cards:
-      - type: entities
-        entities:
-          - switch.test2_mlangeur
