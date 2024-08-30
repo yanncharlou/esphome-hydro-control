@@ -42,6 +42,9 @@ views:
             color: accent
             vertical: true
             name: EC error
+          - type: gauge
+            entity: sensor.hydro_control_1_nutrient_daily_flow
+            name: Nutrient daily flow
       - type: vertical-stack
         cards:
           - graph: line
@@ -70,6 +73,43 @@ views:
             icon: mdi:cup-water
       - type: entities
         entities:
+          - entity: switch.hydro_control_1_ph_regulation
+            name: Régulation PH
+          - entity: switch.hydro_control_1_nutrient_regulation
+            name: Régulation EC
+          - entity: switch.hydro_control_1_mixer_loop
+            name: Mixer loop
+          - type: section
+            label: Trigger levels
+          - entity: number.hydro_control_1_ph_high_trigger
+            name: PH high trigger
+          - entity: number.hydro_control_1_ec_low_trigger
+            name: EC low trigger
+          - type: section
+            label: Pulse quantities
+          - entity: number.hydro_control_1_ph_pulse
+            name: PH pulse
+          - entity: number.hydro_control_1_nutrient_a_pulse
+            name: Nutrient A pulse
+          - entity: number.hydro_control_1_nutrient_b_pulse
+            name: Nutrient B pulse
+          - entity: number.hydro_control_1_nutrient_upper_daily_limit
+            name: Nutrient daily limit
+          - type: section
+            label: Error levels
+          - entity: number.hydro_control_1_ph_error_below
+            name: PH min
+          - entity: number.hydro_control_1_ph_error_over
+            name: PH max
+          - entity: number.hydro_control_1_ec_error_below
+            name: EC min
+          - entity: number.hydro_control_1_ec_error_over
+            name: EC max
+        state_color: false
+        title: Régulation
+        show_header_toggle: false
+      - type: entities
+        entities:
           - entity: button.hydro_control_1_pulse_a_b_nutrient
             name: Pulse A+B nutrient
           - entity: button.hydro_control_1_pulse_ph
@@ -95,39 +135,4 @@ views:
             name: Page suivante
         state_color: false
         title: Contrôle direct
-        show_header_toggle: false
-      - type: entities
-        entities:
-          - entity: switch.hydro_control_1_ph_regulation
-            name: Régulation PH
-          - entity: switch.hydro_control_1_nutrient_regulation
-            name: Régulation EC
-          - entity: switch.hydro_control_1_mixer_loop
-            name: Mixer loop
-          - type: section
-            label: Trigger levels
-          - entity: number.hydro_control_1_ph_high_trigger
-            name: PH high trigger
-          - entity: number.hydro_control_1_ec_low_trigger
-            name: EC low trigger
-          - type: section
-            label: Pulse quantities
-          - entity: number.hydro_control_1_ph_pulse
-            name: PH pulse
-          - entity: number.hydro_control_1_nutrient_a_pulse
-            name: Nutrient A pulse
-          - entity: number.hydro_control_1_nutrient_b_pulse
-            name: Nutrient B pulse
-          - type: section
-            label: Error levels
-          - entity: number.hydro_control_1_ph_error_below
-            name: PH min
-          - entity: number.hydro_control_1_ph_error_over
-            name: PH max
-          - entity: number.hydro_control_1_ec_error_below
-            name: EC min
-          - entity: number.hydro_control_1_ec_error_over
-            name: EC max
-        state_color: false
-        title: Régulation
         show_header_toggle: false
