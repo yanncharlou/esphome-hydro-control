@@ -1,0 +1,42 @@
+# on fonctionne sur le principe du leaking bucket
+# la taille du seau correspond à la quantité quotidienne max.
+# la fuite est d'un 24ème du seau par heure.
+
+esphome:
+  includes:
+    - hydro-control/sliding_window_limiter.h
+
+# seems not working @see https://github.com/esphome/issues/issues/2831
+#globals:
+#  - id: nutrient_limiter
+#    type: SlidingWindowLimiter
+#    initial_value: 'new SlidingWindowLimiter(0.0, 24)'
+
+#custom_component:
+#  - id: nutrient_limiter_id
+#    lambda: |-
+#      auto nutrient_limiter = new SlidingWindowLimiter(0.0, 24);
+#      App.register_component(nutrient_limiter);
+#      return {nutrient_limiter};
+
+number:
+  # nutrient daily limit
+  - platform: template
+    name: Nutrient upper daily limit
+    id: nutrient_daily_limit_ml
+    unit_of_measurement: 'ml'
+    min_value: 0
+    max_value: 1000
+    step: 0.1
+    optimistic: true
+    restore_value: true
+    initial_value: 180
+    on_value:
+      then:
+        lambda: 'nutrient_limiter->setLimit(x);'
+
+sensor:
+  - platform: template
+    name: "Nutrient daily flow"
+    id: nutrient_daily_alert_bucket
+    lambda: 'return nutrient_limiter->getTotalAddedOnPeriod();'

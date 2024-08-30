@@ -1,3 +1,13 @@
+esphome:
+  name: hydro-control-1
+  friendly_name: Contrôle Hydroponique 1
+  compile_process_limit: 1
+#  includes:
+#    - hydro-control/nutrient_limit_functions.h
+
+packages:
+  nutrient_limit: !include nutrient_limit.yaml
+
 # PH Calibration (no way to make it from device by now)
 substitutions:
   #ph_918: "2.62"
@@ -15,13 +25,10 @@ substitutions:
 
 #EC calibration is set directly in sensor parameters
 
-esphome:
-  name: hydro-control-1
-  friendly_name: Contrôle Hydroponique 1
-  compile_process_limit: 1
-
 esp8266:
   board: d1
+    # Attention à limiter au maximum les options "restore_value"
+  restore_from_flash: true
 
 # Enable logging
 logger:
@@ -51,13 +58,13 @@ globals:
   # EC calibration (raw value with only median filter)
   - id: ec_raw_median
     type: float
-    restore_value: no
+    restore_value: false
     initial_value: '0.0'
 
   # PH calibration (raw value with only median filter)
   - id: ph_raw_median
     type: float
-    restore_value: no
+    restore_value: false
     initial_value: '0.0'
 
 # Buses
@@ -432,15 +439,22 @@ script:
   - id: nutrient_pulse
     mode: single
     then:
-      - script.execute: mixer_pulse # launch mixer to ensure good measure after adding product
-      - switch.turn_on: pump_2
-      - delay: !lambda 'return id(nutrient_a_pulse_ml).state * ${pump2_ml_to_ms_ratio};'
-      - switch.turn_off: pump_2
-      - switch.turn_on: pump_3
-      - delay: !lambda 'return id(nutrient_b_pulse_ml).state * ${pump3_ml_to_ms_ratio};'
-      - switch.turn_off: pump_3      
-      # 30s minimum delay before trying adding again.
-      - delay: 30s
+      if:
+        condition: 
+          lambda: |-
+              return nutrient_limiter->addIfPossible(
+                id(nutrient_a_pulse_ml).state + id(nutrient_b_pulse_ml).state
+              );
+        then:
+        - script.execute: mixer_pulse # launch mixer to ensure good measure after adding product
+        - switch.turn_on: pump_2
+        - delay: !lambda 'return id(nutrient_a_pulse_ml).state * ${pump2_ml_to_ms_ratio};'
+        - switch.turn_off: pump_2
+        - switch.turn_on: pump_3
+        - delay: !lambda 'return id(nutrient_b_pulse_ml).state * ${pump3_ml_to_ms_ratio};'
+        - switch.turn_off: pump_3      
+        # 30s minimum delay before trying adding again.
+        - delay: 30s
 
   # Mixer pulse
   - id: mixer_pulse
