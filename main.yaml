@@ -16,6 +16,8 @@ substitutions:
   ph_4: "0.516"
   #ph_401: "0.541"
 
+  ec_ratio: "2.18"
+
   # 60s = 93.5ml -> ratio = 60000 / 93.5 = 645.2
   pump1_ml_to_ms_ratio: "645.2"
   # 60s = 103.8ml -> ratio = 60000 / 103.8 = 578.03
@@ -57,6 +59,11 @@ captive_portal:
 globals:
   # EC calibration (raw value with only median filter)
   - id: ec_raw_median
+    type: float
+    restore_value: false
+    initial_value: '0.0'
+
+  - id: ec_base
     type: float
     restore_value: false
     initial_value: '0.0'
@@ -131,6 +138,7 @@ display:
       lambda: |-
         it.printf(0, 0, id(roboto), "PHmv: %.5f", id(ph_raw_median) );
         it.printf(0, 16, id(roboto), "ECmv: %.5f", id(ec_raw_median) );
+        it.printf(0, 32, id(roboto), "ECbase: %.5f", id(ec_base) );
 
 # Sensors
 binary_sensor:
@@ -213,7 +221,8 @@ sensor:
             float compensationVoltage = x / compensationCoefficient; //temperature compensation
             float tdsValue = (133.42 * compensationVoltage * compensationVoltage * compensationVoltage - 255.86 * compensationVoltage * compensationVoltage + 857.39 * compensationVoltage) * 0.5; //convert voltage value to tds value
             //return tdsValue / 0.64;
-            return tdsValue * 2.18; // Comparaison empirique avec mon ec mètre.
+            id(ec_base) = tdsValue;
+            return tdsValue * ${ec_ratio}; // Comparaison empirique avec mon ec mètre.
 
   - platform: dallas_temp
     address: 0xa6b297791f64ff28
