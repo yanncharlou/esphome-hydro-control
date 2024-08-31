@@ -1,5 +1,8 @@
 #include "esphome.h"
 
+#ifndef SLIDING_WINDOW_LIMITER_H
+#define SLIDING_WINDOW_LIMITER_H
+
 class Addition {
 public:
     float quantity;
@@ -82,7 +85,4 @@ private:
     }
 };
 
-
-/* Not found any better way than this. (ugly) */
-
-SlidingWindowLimiter* nutrient_limiter = new SlidingWindowLimiter(0.0, 24);
+#endif /* SLIDING_WINDOW_LIMITER_H */

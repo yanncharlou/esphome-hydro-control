@@ -2,11 +2,13 @@ esphome:
   name: hydro-control-1
   friendly_name: Contrôle Hydroponique 1
   compile_process_limit: 1
-#  includes:
-#    - hydro-control/nutrient_limit_functions.h
+  includes:
+    - hydro-control/sliding_window_limiter.h # mandatory for esphome to copy file to src directory.
+    - hydro-control/globals.h
 
 packages:
   nutrient_limit: !include nutrient_limit.yaml
+  ph_minus_limit: !include ph_minus_limit.yaml
 
 # PH Calibration (no way to make it from device by now)
 substitutions:
@@ -437,12 +439,17 @@ script:
   - id: ph_minus_pulse
     mode: single
     then:
-      - script.execute: mixer_pulse # launch mixer to ensure good measure after adding product
-      - switch.turn_on: pump_1
-      - delay: !lambda 'return id(ph_pulse_ml).state * ${pump1_ml_to_ms_ratio};'
-      - switch.turn_off: pump_1
-      # 30s minimum delay before trying adding again.
-      - delay: 30s
+      if:
+        condition: 
+          lambda: |-
+              return ph_minus_limiter->addIfPossible(id(ph_pulse_ml).state);
+        then:
+        - script.execute: mixer_pulse # launch mixer to ensure good measure after adding product
+        - switch.turn_on: pump_1
+        - delay: !lambda 'return id(ph_pulse_ml).state * ${pump1_ml_to_ms_ratio};'
+        - switch.turn_off: pump_1
+        # 30s minimum delay before trying adding again.
+        - delay: 30s
 
   # Nutrient A+B pulse sequence
   - id: nutrient_pulse

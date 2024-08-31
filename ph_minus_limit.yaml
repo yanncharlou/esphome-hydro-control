@@ -1,0 +1,30 @@
+# Used globals : 
+# ph_minus_limiter
+
+# seems not working @see https://github.com/esphome/issues/issues/2831
+#globals:
+#  - id: ph_minus_limiter
+#    type: SlidingWindowLimiter
+#    initial_value: 'new SlidingWindowLimiter(0.0, 24)'
+
+number:
+  # ph minus daily limit
+  - platform: template
+    name: PH minus daily limit
+    id: ph_minus_daily_limit_ml
+    unit_of_measurement: 'ml'
+    min_value: 0
+    max_value: 50
+    step: 1
+    optimistic: true
+    restore_value: true
+    initial_value: 50
+    on_value:
+      then:
+        lambda: 'ph_minus_limiter->setLimit(x);'
+
+sensor:
+  - platform: template
+    name: "PH minus daily flow"
+    id: ph_minus_daily_flow
+    lambda: 'return ph_minus_limiter->getTotalAddedOnPeriod();'
