@@ -16,13 +16,22 @@ esphome:
 packages:
   hydro-control: !include hydro-control/main.yaml
 
+wifi:
+#  ssid: !secret wifi_ssid_jardin
+#  password: !secret wifi_password_jardin
+  networks:
+  - ssid: !secret wifi_ssid_jardin
+    password: !secret wifi_password_jardin
+  - ssid: !secret wifi_ssid
+    password: !secret wifi_password
+
 substitutions:
   
   # PH Calibration (no way to make it from device by now)
-  ph_7: "1.84"
-  ph_4: "0.516"
+  ph_7: "1.814"
+  ph_4: "0.586"
 
-  # EC calibration (apply ratio to ec_base)
+  #EC calibration is set directly in sensor parameters
   ec_ratio: "1.828"
 
   # Pump calibration
