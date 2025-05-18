@@ -14,7 +14,7 @@ number:
     id: ph_minus_daily_limit_ml
     unit_of_measurement: 'ml'
     min_value: 0
-    max_value: 50
+    max_value: 500
     step: 1
     optimistic: true
     restore_value: true

@@ -41,17 +41,22 @@ public:
             additions[queueEnd] = Addition(quantity, currentTime);
             queueEnd = (queueEnd + 1) % maxQueueSize;
             totalAddedOnPeriod += quantity;
-            ESP_LOGD("custom", "addIfPossible : added. new total : %f", totalAddedOnPeriod);
+            ESP_LOGD("custom", "addIfPossible : added. new total : %f, limit %f", 
+                totalAddedOnPeriod, limitOverPeriod
+            );
             // ok added.
             return true;
         } else {
             // refused
-            ESP_LOGD("custom", "addIfPossible : refused. total: %f , try to add: %f", totalAddedOnPeriod, quantity);
+            ESP_LOGD("custom", "addIfPossible : refused. total: %f , try to add: %f, limit: %f",
+                totalAddedOnPeriod, quantity, limitOverPeriod
+            );
             return false;
         }
     }
 
     void setLimit(float newLimit) {
+        ESP_LOGD("custom", "setlimit : limit: %f -> %f total: %f", limitOverPeriod, newLimit, totalAddedOnPeriod);
         limitOverPeriod = newLimit;
     }
 

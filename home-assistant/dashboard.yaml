@@ -9,16 +9,31 @@ views:
           - type: gauge
             entity: sensor.hydro_control_1_ec
             max: 2000
-            needle: false
+            needle: true
             name: EC
             unit: ' '
             gauge_template: '{{ states.sensor.hydro_control_1_ec.state  | round(0) }}'
+            segments:
+              - from: 0
+                color: '#014a96'
+              - from: 800
+                color: '#1abc9c '
+              - from: 1800
+                color: '#ff4000'
           - type: gauge
             entity: sensor.hydro_control_1_ph
-            max: 14
-            needle: false
+            min: 4
+            max: 10
+            needle: true
             name: PH
             unit: ' '
+            segments:
+              - from: 0
+                color: '#ec7063'
+              - from: 5.5
+                color: '#1abc9c '
+              - from: 6.5
+                color: '#ec7063'
           - type: gauge
             entity: sensor.hydro_control_1_temperature_2
             max: 35
@@ -32,19 +47,28 @@ views:
             color: accent
             vertical: true
             name: Tank vide
+            features_position: bottom
+            hide_state: true
           - type: tile
             entity: binary_sensor.hydro_control_1_ph_error
             color: accent
             vertical: true
             name: PH error
+            features_position: bottom
+            hide_state: true
           - type: tile
             entity: binary_sensor.hydro_control_1_ec_error
             color: accent
             vertical: true
             name: EC error
+            features_position: bottom
+            hide_state: true
           - type: gauge
             entity: sensor.hydro_control_1_nutrient_daily_flow
-            name: Nutrient daily flow
+            name: Nutrient daily
+          - type: gauge
+            entity: sensor.hydro_control_1_ph_minus_daily_flow
+            name: PH- daily
       - type: vertical-stack
         cards:
           - graph: line
@@ -89,6 +113,8 @@ views:
             label: Pulse quantities
           - entity: number.hydro_control_1_ph_pulse
             name: PH pulse
+          - entity: number.hydro_control_1_ph_minus_daily_limit
+            name: PH daily limit
           - entity: number.hydro_control_1_nutrient_a_pulse
             name: Nutrient A pulse
           - entity: number.hydro_control_1_nutrient_b_pulse
