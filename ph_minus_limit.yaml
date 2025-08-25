@@ -28,3 +28,13 @@ sensor:
     name: "PH minus daily flow"
     id: ph_minus_daily_flow
     lambda: 'return ph_minus_limiter->getTotalAddedOnPeriod();'
+
+button:
+  - platform: template
+    name: "PH minus daily reset"
+    id: ph_minus_daily_reset
+    icon: "mdi:restart"
+    on_press:
+      then:
+        - lambda: 'return ph_minus_limiter->reset();'
+        - component.update: ph_minus_daily_flow

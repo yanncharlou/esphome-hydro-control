@@ -22,3 +22,13 @@ sensor:
     name: "Nutrient daily flow"
     id: nutrient_daily_alert_bucket
     lambda: 'return nutrient_limiter->getTotalAddedOnPeriod();'
+
+button:
+  - platform: template
+    name: "Nutrient daily reset"
+    id: nutrient_daily_reset
+    icon: "mdi:restart"
+    on_press:
+      then:
+        - lambda: 'return nutrient_limiter->reset();'
+        - component.update: nutrient_daily_alert_bucket

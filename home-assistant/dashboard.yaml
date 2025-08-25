@@ -113,14 +113,10 @@ views:
             label: Pulse quantities
           - entity: number.hydro_control_1_ph_pulse
             name: PH pulse
-          - entity: number.hydro_control_1_ph_minus_daily_limit
-            name: PH daily limit
           - entity: number.hydro_control_1_nutrient_a_pulse
             name: Nutrient A pulse
           - entity: number.hydro_control_1_nutrient_b_pulse
             name: Nutrient B pulse
-          - entity: number.hydro_control_1_nutrient_upper_daily_limit
-            name: Nutrient daily limit
           - type: section
             label: Error levels
           - entity: number.hydro_control_1_ph_error_below
@@ -131,6 +127,16 @@ views:
             name: EC min
           - entity: number.hydro_control_1_ec_error_over
             name: EC max
+          - type: section
+            label: Daily limits
+          - entity: number.hydro_control_1_ph_minus_daily_limit
+            name: PH daily limit
+          - entity: button.hydro_control_1_ph_minus_daily_reset
+            name: PH daily reset
+          - entity: number.hydro_control_1_nutrient_upper_daily_limit
+            name: Nutrient daily limit
+          - entity: button.hydro_control_1_nutrient_daily_reset
+            name: Nutrient daily reset
         state_color: false
         title: Régulation
         show_header_toggle: false

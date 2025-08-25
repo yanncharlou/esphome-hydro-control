@@ -68,6 +68,12 @@ public:
         return totalAddedOnPeriod;
     }
 
+    void reset(){
+        totalAddedOnPeriod = 0.0;
+        queueStart = 0;
+        queueEnd = 0;
+    }
+
 private:
     Addition* additions;
     size_t maxQueueSize;
