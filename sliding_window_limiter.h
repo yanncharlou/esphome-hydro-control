@@ -23,24 +23,21 @@ public:
         additions = new Addition[maxQueueSize];
     }
 
-    ~SlidingWindowLimiter() {
+    ~SlidingWindowLimiter() 
+    {
         delete[] additions;
     }
 
-    bool addIfPossible(float quantity) {
-        unsigned long currentTime = millis();
-        cleanupAndRefresh(currentTime);
+    bool addIfPossible(float quantity) 
+    {
+        cleanupAndRefresh(millis());
 
         if (totalAddedOnPeriod + quantity <= limitOverPeriod) {
-            if ((queueEnd + 1) % maxQueueSize == queueStart) {
-                // Queue is full. So returning false.
-                ESP_LOGD("custom", "addIfPossible : queue is full");
+
+            if(!add(quantity)){
                 return false;
             }
 
-            additions[queueEnd] = Addition(quantity, currentTime);
-            queueEnd = (queueEnd + 1) % maxQueueSize;
-            totalAddedOnPeriod += quantity;
             ESP_LOGD("custom", "addIfPossible : added. new total : %f, limit %f", 
                 totalAddedOnPeriod, limitOverPeriod
             );
@@ -55,20 +52,56 @@ public:
         }
     }
 
-    void setLimit(float newLimit) {
+    float addAllowed(float quantity) 
+    {
+        float toAdd = getAllowed(quantity);
+        
+        if(toAdd <= 0.0){
+            ESP_LOGD("custom", "addAllowed : asked : %f, added %f, new total : %f, limit %f",
+                quantity, 0.0, totalAddedOnPeriod, limitOverPeriod
+            );
+            return 0.0;
+        }
+
+        if(!add(quantity)){
+            return 0.0;
+        }
+
+        ESP_LOGD("custom", "addAllowed : asked : %f, added %f, new total : %f, limit %f",
+            quantity, toAdd, totalAddedOnPeriod, limitOverPeriod
+        );
+
+
+        return toAdd;
+    }
+
+    float getAllowed(float quantity)
+    {
+        cleanupAndRefresh(millis());
+
+        float maxAllowed = std::fmaxf(0.0f, limitOverPeriod - totalAddedOnPeriod);
+
+        return std::fminf(maxAllowed, quantity);
+    }
+
+    void setLimit(float newLimit) 
+    {
         ESP_LOGD("custom", "setlimit : limit: %f -> %f total: %f", limitOverPeriod, newLimit, totalAddedOnPeriod);
         limitOverPeriod = newLimit;
     }
 
-    void setDuration(unsigned long newDurationHours) {
+    void setDuration(unsigned long newDurationHours) 
+    {
         duration = newDurationHours * 60UL * 60UL * 1000UL;
     }
 
-    float getTotalAddedOnPeriod(){
+    float getTotalAddedOnPeriod()
+    {
         return totalAddedOnPeriod;
     }
 
-    void reset(){
+    void reset()
+    {
         totalAddedOnPeriod = 0.0;
         queueStart = 0;
         queueEnd = 0;
@@ -83,7 +116,8 @@ private:
     float limitOverPeriod;
     unsigned long duration;
 
-    void cleanupAndRefresh(unsigned long currentTime) {
+    void cleanupAndRefresh(unsigned long currentTime) 
+    {
         while (queueStart != queueEnd) {
             Addition &front = additions[queueStart];
             if (currentTime - front.timeAdded >= duration) {
@@ -93,6 +127,25 @@ private:
                 break;
             }
         }
+    }
+
+    /**
+     * @return false if queue is full
+     */
+    bool add(float quantity) 
+    {
+        
+        if ((queueEnd + 1) % maxQueueSize == queueStart) {
+            // Queue is full. So returning false.
+            ESP_LOGD("custom", "add : queue is full");
+            return false;
+        }
+
+        additions[queueEnd] = Addition(quantity, millis());
+        queueEnd = (queueEnd + 1) % maxQueueSize;
+        totalAddedOnPeriod += quantity;
+
+        return true;
     }
 };
 
