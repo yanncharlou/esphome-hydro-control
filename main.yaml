@@ -56,7 +56,8 @@ wifi:
     ssid: "Test1 Fallback Hotspot"
     password: !secret fallback_hotspot_password
 
-captive_portal:
+# disable captive portal
+#captive_portal:
 
 # globals
 globals:
