@@ -2,6 +2,9 @@ title: Hydroponie
 views:
   - path: default_view
     title: Pots BATO
+    background: >-
+      center / cover no-repeat
+      url("/local/images_perso/background/cyberpunk-garden-sea.jpg")
     badges: []
     cards:
       - type: horizontal-stack
@@ -168,3 +171,16 @@ views:
         state_color: false
         title: Contrôle direct
         show_header_toggle: false
+      - type: entities
+        entities:
+          - entity: button.controle_hydroponique_1_calibrer_ph_point_1_ph_7
+            name: Calibrer PH7
+          - entity: sensor.controle_hydroponique_1_ph_cal_v1_ph7
+            name: Tension de calibration PH7
+          - entity: button.controle_hydroponique_1_calibrer_ph_point_2_ph_4
+            name: Calibrer PH4
+          - entity: sensor.controle_hydroponique_1_ph_cal_v2_ph4_norm_25c
+            name: Tension de calibration PH4 (normalisée à 25°C)
+        title: Calibration PH
+        show_header_toggle: false
+        state_color: false

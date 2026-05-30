@@ -3,21 +3,21 @@ esphome:
   friendly_name: Contrôle Hydroponique 1
   compile_process_limit: 1
   includes:
-    - hydro-control/sliding_window_limiter.h # mandatory for esphome to copy file to src directory.
+    - hydro-control/sliding_window_limiter.h
     - hydro-control/globals.h
+
+  on_boot:
+    priority: -100  # après l'initialisation de tous les composants
+    then:
+      - component.update: ph_cal_v1_sensor
+      - component.update: ph_cal_v2_sensor
+
 
 packages:
   nutrient_limit: !include nutrient_limit.yaml
   ph_minus_limit: !include ph_minus_limit.yaml
 
-# PH Calibration (no way to make it from device by now)
 substitutions:
-  #ph_918: "2.62"
-  #ph_686: "1.82"
-  ph_7: "1.84"
-  ph_4: "0.516"
-  #ph_401: "0.541"
-
   ec_ratio: "2.18"
 
   # 60s = 93.5ml -> ratio = 60000 / 93.5 = 645.2
@@ -27,17 +27,12 @@ substitutions:
   # 60s = 98.4 -> ratio = 60000 / 98.4 == 609.76
   pump3_ml_to_ms_ratio: "609.76"
 
-#EC calibration is set directly in sensor parameters
-
 esp8266:
   board: d1
-    # Attention à limiter au maximum les options "restore_value"
   restore_from_flash: true
 
-# Enable logging
 logger:
 
-# Enable Home Assistant API
 api:
   encryption:
     key: !secret api_encryption_key
@@ -47,19 +42,8 @@ ota:
     password: !secret ota_password
 
 wifi:
-  #ssid: !secret wifi_ssid
-  #password: !secret wifi_password
-  # use should add networks in is yml file.
+  # Ajouter les réseaux dans un fichier séparé
 
-  # Enable fallback hotspot (captive portal) in case wifi connection fails
-  #ap:
-  #  ssid: "Test1 Fallback Hotspot"
-  #  password: !secret fallback_hotspot_password
-
-# disable captive portal
-#captive_portal:
-
-# globals
 globals:
   # EC calibration (raw value with only median filter)
   - id: ec_raw_median
@@ -72,16 +56,27 @@ globals:
     restore_value: false
     initial_value: '0.0'
 
-  # PH calibration (raw value with only median filter)
+  # PH : tension brute après lissage (pour affichage page 2 et calibration)
   - id: ph_raw_median
     type: float
     restore_value: false
     initial_value: '0.0'
 
+  # PH calibration - valeurs normalisées à 25°C stockées en flash
+  # Point 1 : tampon pH 7 (tension au point isoélectrique du module)
+  - id: ph_cal_v1
+    type: float
+    restore_value: true
+    initial_value: '1.84'   # valeur par défaut indicative
+
+  # Point 2 : tampon pH 4, normalisé à 25°C
+  - id: ph_cal_v2
+    type: float
+    restore_value: true
+    initial_value: '0.516'  # valeur par défaut indicative
+
 # Buses
 i2c:
-  #sda: GPIO4 #D2
-  #scl: GPIO5 #D1
   scan: True
   id: bus_a
   frequency: 800kHz
@@ -90,7 +85,7 @@ one_wire:
   - platform: gpio
     pin: D5
 
-# Periphériques I2C
+# Périphériques I2C
 ads1115:
   - address: 0x48
 
@@ -121,28 +116,33 @@ display:
     pages:
     - id: page1
       lambda: |-
-        it.printf(0, 0, id(roboto), "PH : %.2f", id(ph_sensor).state );
-        it.printf(0, 16, id(roboto), "EC : %.0f µS/cm", id(ec_sensor).state );
-        it.printf(0, 32, id(roboto), "TH : %.1f °C", id(temperature_sensor).state );
+        it.printf(0, 0, id(roboto), "PH : %.2f", id(ph_sensor).state);
+        it.printf(0, 16, id(roboto), "EC : %.0f µS/cm", id(ec_sensor).state);
+        it.printf(0, 32, id(roboto), "TH : %.1f °C", id(temperature_sensor).state);
         if (id(ph_minus_pulse).is_running()) {
           it.filled_rectangle(0, 48, 48, 16, COLOR_ON);
           it.print(0, 48, id(roboto), COLOR_OFF, "PH-");
-        }else if(id(ph_error).state){
+        } else if (id(ph_error).state) {
           it.filled_rectangle(0, 48, 48, 16, COLOR_ON);
           it.print(0, 48, id(roboto), COLOR_OFF, "PH KO");
         }
         if (id(nutrient_pulse).is_running()) {
           it.filled_rectangle(50, 48, 48, 16, COLOR_ON);
           it.print(50, 48, id(roboto), COLOR_OFF, "EC+");
-        }else if(id(ec_error).state){
-          it.filled_rectangle(0, 48, 48, 16, COLOR_ON);
+        } else if (id(ec_error).state) {
+          it.filled_rectangle(50, 48, 48, 16, COLOR_ON);
           it.print(50, 48, id(roboto), COLOR_OFF, "EC KO");
         }
     - id: page2
       lambda: |-
-        it.printf(0, 0, id(roboto), "PHmv: %.5f", id(ph_raw_median) );
-        it.printf(0, 16, id(roboto), "ECmv: %.5f", id(ec_raw_median) );
-        it.printf(0, 32, id(roboto), "ECbase: %.5f", id(ec_base) );
+        it.printf(0, 0, id(roboto), "PHmv: %.5f", id(ph_raw_median));
+        it.printf(0, 16, id(roboto), "ECmv: %.5f", id(ec_raw_median));
+        it.printf(0, 32, id(roboto), "ECbase: %.5f", id(ec_base));
+    - id: page3
+      lambda: |-
+        it.printf(0, 0, id(roboto), "V1(pH7): %.4f", id(ph_cal_v1));
+        it.printf(0, 16, id(roboto), "V2(pH4): %.4f", id(ph_cal_v2));
+        it.printf(0, 32, id(roboto), "T: %.1f °C", id(temperature_sensor).state);
 
 # Sensors
 binary_sensor:
@@ -162,14 +162,13 @@ binary_sensor:
         - display.page.show_next: main_display
         - component.update: main_display
 
-  # empty tank alert triggered by extremely low EC.
+  # Alerte réservoir vide (EC très faible)
   - platform: template
     name: "Empty tank alert"
     id: empty_tank_alert
     lambda: |-
       return id(ec_sensor).state < 100;
 
-  # Error status
   - platform: template
     name: "PH Error"
     id: ph_error
@@ -182,8 +181,10 @@ binary_sensor:
     lambda: |-
       return (id(ec_sensor).state < id(ec_error_below).state) || (id(ec_sensor).state > id(ec_error_over).state);
 
-
 sensor:
+  # -------------------------
+  # Capteur PH
+  # -------------------------
   - platform: ads1115
     multiplexer: 'A0_GND'
     gain: 4.096
@@ -197,16 +198,35 @@ sensor:
           send_every: 1
           send_first_at: 1
       - lambda: |-
+          // Stocker la tension brute lissée pour la calibration et l'affichage
           id(ph_raw_median) = x;
-          return x;
-      - calibrate_linear:
-          # Map v (from sensor) -> PH (true value)
-          #- ${ph_918} -> 9.18
-          #- ${ph_686} -> 6.86
-          - ${ph_7} -> 7.0
-          #- ${ph_401} -> 4.01
-          - ${ph_4} -> 4.0
 
+          float T = id(temperature_sensor).state;
+          if (isnan(T) || T == 0.0f) T = 25.0f;
+
+          // Facteur de Nernst pour la température actuelle
+          // La pente de l'électrode est proportionnelle à T(Kelvin) / 298.15
+          float nernst_now = (T + 273.15f) / 298.15f;
+
+          // V_pivot = tension au point isoélectrique du module DFRobot (pH 7)
+          // Cet offset matériel (~1.84V) ne suit pas Nernst, il est stable en température.
+          // ph_cal_v1 est stocké tel quel (pas de correction Nernst au stockage).
+          float V_pivot = id(ph_cal_v1);
+
+          // ph_cal_v2 est stocké normalisé à 25°C (correction Nernst appliquée à la calibration).
+          // On projette la déviation depuis V_pivot à la température actuelle.
+          float v1_comp = V_pivot;
+          float v2_comp = V_pivot + (id(ph_cal_v2) - V_pivot) * nernst_now;
+
+          // Interpolation linéaire tension -> pH
+          float slope = (7.0f - 4.0f) / (v1_comp - v2_comp);
+          float ph = 7.0f + slope * (x - v1_comp);
+
+          return ph;
+
+  # -------------------------
+  # Capteur EC
+  # -------------------------
   - platform: ads1115
     multiplexer: 'A1_GND'
     gain: 4.096
@@ -220,41 +240,63 @@ sensor:
           send_every: 1
           send_first_at: 1
       - lambda: |-
-            id(ec_raw_median) = x;
-            float compensationCoefficient = 1.0 + 0.02 * (id(temperature_sensor).state - 25.0); //temperature compensation formula: fFinalResult(25^C) = fFinalResult(current)/(1.0+0.02*(fTP-25.0));
-            float compensationVoltage = x / compensationCoefficient; //temperature compensation
-            float tdsValue = (133.42 * compensationVoltage * compensationVoltage * compensationVoltage - 255.86 * compensationVoltage * compensationVoltage + 857.39 * compensationVoltage) * 0.5; //convert voltage value to tds value
-            //return tdsValue / 0.64;
-            id(ec_base) = tdsValue;
-            return tdsValue * ${ec_ratio}; // Comparaison empirique avec mon ec mètre.
+          id(ec_raw_median) = x;
+          float compensationCoefficient = 1.0 + 0.02 * (id(temperature_sensor).state - 25.0);
+          float compensationVoltage = x / compensationCoefficient;
+          float tdsValue = (133.42 * compensationVoltage * compensationVoltage * compensationVoltage
+                           - 255.86 * compensationVoltage * compensationVoltage
+                           + 857.39 * compensationVoltage) * 0.5;
+          id(ec_base) = tdsValue;
+          return tdsValue * ${ec_ratio};
 
+  # -------------------------
+  # Température
+  # -------------------------
   - platform: dallas_temp
     address: 0xa6b297791f64ff28
     name: "Temperature"
     id: temperature_sensor
 
-# Outputs
+  # -------------------------
+  # Sensors de diagnostic calibration PH (visibles dans HA)
+  # -------------------------
+  - platform: template
+    name: "pH cal V1 (pH7)"
+    id: ph_cal_v1_sensor
+    lambda: 'return id(ph_cal_v1);'
+    update_interval: never # updated only on boot and after calibration
+    accuracy_decimals: 4
+    unit_of_measurement: "V"
 
+  - platform: template
+    name: "pH cal V2 (pH4 norm. 25C)"
+    id: ph_cal_v2_sensor
+    lambda: 'return id(ph_cal_v2);'
+    update_interval: never # updated only on boot and after calibration
+    accuracy_decimals: 4
+    unit_of_measurement: "V"
+
+# Outputs
 switch:
-  # Pump #1 : PH-
+  # Pompe #1 : PH-
   - platform: gpio
-    pin: 
+    pin:
       number: GPIO12
     id: pump_1
     name: "Pompe PH-"
     icon: "mdi:water-plus"
-    
-  # Pump #2 : Nutrient A
+
+  # Pompe #2 : Nutrient A
   - platform: gpio
-    pin: 
+    pin:
       number: GPIO13
     id: pump_2
     name: "Pompe nutrient A"
     icon: "mdi:water-plus"
-    
-  # Pump #3 : Nutrient B
+
+  # Pompe #3 : Nutrient B
   - platform: gpio
-    pin: 
+    pin:
       number: GPIO15
     id: pump_3
     name: "Pompe nutrient B"
@@ -262,7 +304,7 @@ switch:
 
   # Mixer
   - platform: gpio
-    pin: 
+    pin:
       number: GPIO0
     id: mixer
     name: "Mixer"
@@ -272,25 +314,25 @@ switch:
     name: "PH regulation"
     id: ph_regulation_enabled
     icon: "mdi:auto-fix"
-    optimistic : true
+    optimistic: true
     restore_mode: "RESTORE_DEFAULT_ON"
 
   - platform: template
     name: "Nutrient regulation"
     id: nutrient_regulation_enabled
     icon: "mdi:auto-fix"
-    optimistic : true
+    optimistic: true
     restore_mode: "RESTORE_DEFAULT_ON"
 
   - platform: template
     name: "Mixer loop"
     id: mixer_loop_enabled
     icon: "mdi:bowl-mix"
-    optimistic: True
+    optimistic: true
     restore_mode: RESTORE_DEFAULT_ON
 
-# HA Input
 button:
+  # Navigation écran
   - platform: template
     name: Ecran - page suivante
     id: next_page_ha_btn
@@ -300,6 +342,7 @@ button:
         - display.page.show_next: main_display
         - component.update: main_display
 
+  # Déclenchement manuel des pulses
   - platform: template
     id: ph_pulse_btn
     name: "Pulse PH-"
@@ -314,6 +357,7 @@ button:
     on_press:
       - script.execute: nutrient_pulse
 
+  # Calibration des pompes (pulse 1 minute)
   - platform: template
     id: pump_1_calibration_pulse
     name: "Pump 1 calibration pulse"
@@ -341,8 +385,56 @@ button:
       - delay: 1min
       - switch.turn_off: pump_3
 
-number:
+  # -------------------------
+  # Calibration PH
+  # Procédure :
+  #   1. Plonger la sonde dans tampon pH 7, attendre stabilisation
+  #   2. Appuyer sur "Calibrer pH point 1 (pH 7)"
+  #   3. Plonger dans tampon pH 4, attendre stabilisation
+  #   4. Appuyer sur "Calibrer pH point 2 (pH 4)"
+  # Les valeurs sont sauvegardées en flash automatiquement.
+  # La calibration peut être faite à n'importe quelle température.
+  # -------------------------
+  - platform: template
+    name: "Calibrer pH point 1 (pH 7)"
+    icon: "mdi:test-tube"
+    on_press:
+      then:
+        - lambda: |-
+            // Pour pH 7 : tension = offset matériel du module DFRobot.
+            // Cet offset ne suit pas Nernst -> stocké tel quel, sans correction.
+            float v1_raw = id(ph_raw_median);
+            id(ph_cal_v1) = v1_raw;
+            ESP_LOGI("ph_cal", "Cal point 1 (pH7): V=%.4f T=%.1f",
+                     id(ph_cal_v1), id(temperature_sensor).state);
+        - component.update: ph_cal_v1_sensor   # publication immédiate
 
+
+  - platform: template
+    name: "Calibrer pH point 2 (pH 4)"
+    icon: "mdi:test-tube"
+    on_press:
+      then:
+        - lambda: |-
+            // Pour pH 4 : la déviation par rapport au pivot (pH7) suit Nernst.
+            // On normalise à 25°C au moment du stockage pour ne pas refaire
+            // ce calcul à chaque mesure.
+            float T = id(temperature_sensor).state;
+            if (isnan(T) || T == 0.0f) T = 25.0f;
+            float nernst_cal = (T + 273.15f) / 298.15f;
+
+            float v2_raw = id(ph_raw_median);
+            float V_pivot = id(ph_cal_v1);
+
+            // Normalisation à 25°C : on ramène la déviation à T_ref
+            id(ph_cal_v2) = V_pivot + (v2_raw - V_pivot) / nernst_cal;
+
+            ESP_LOGI("ph_cal", "Cal point 2 (pH4): V_raw=%.4f V_norm=%.4f T=%.1f",
+                     v2_raw, id(ph_cal_v2), T);
+        - component.update: ph_cal_v2_sensor   # publication immédiate
+
+
+number:
   - platform: template
     name: PH high trigger
     id: ph_high_trigger
@@ -414,7 +506,7 @@ number:
     step: 0.1
     optimistic: true
     restore_value: true
-    initial_value: 5
+    initial_value: 7
 
   - platform: template
     name: EC error below
@@ -437,44 +529,42 @@ number:
     initial_value: 1900
 
 script:
-  # PH minus pulse sequence
+  # Séquence pulse PH-
   - id: ph_minus_pulse
     mode: single
     then:
       if:
-        condition: 
+        condition:
           lambda: |-
-              return ph_minus_limiter->addIfPossible(id(ph_pulse_ml).state);
+            return ph_minus_limiter->addIfPossible(id(ph_pulse_ml).state);
         then:
-        - script.execute: mixer_pulse # launch mixer to ensure good measure after adding product
-        - switch.turn_on: pump_1
-        - delay: !lambda 'return id(ph_pulse_ml).state * ${pump1_ml_to_ms_ratio};'
-        - switch.turn_off: pump_1
-        # 30s minimum delay before trying adding again.
-        - delay: 30s
+          - script.execute: mixer_pulse
+          - switch.turn_on: pump_1
+          - delay: !lambda 'return id(ph_pulse_ml).state * ${pump1_ml_to_ms_ratio};'
+          - switch.turn_off: pump_1
+          - delay: 30s
 
-  # Nutrient A+B pulse sequence
+  # Séquence pulse nutriments A+B
   - id: nutrient_pulse
     mode: single
     then:
       if:
-        condition: 
+        condition:
           lambda: |-
-              return nutrient_limiter->addIfPossible(
-                id(nutrient_a_pulse_ml).state + id(nutrient_b_pulse_ml).state
-              );
+            return nutrient_limiter->addIfPossible(
+              id(nutrient_a_pulse_ml).state + id(nutrient_b_pulse_ml).state
+            );
         then:
-        - script.execute: mixer_pulse # launch mixer to ensure good measure after adding product
-        - switch.turn_on: pump_2
-        - delay: !lambda 'return id(nutrient_a_pulse_ml).state * ${pump2_ml_to_ms_ratio};'
-        - switch.turn_off: pump_2
-        - switch.turn_on: pump_3
-        - delay: !lambda 'return id(nutrient_b_pulse_ml).state * ${pump3_ml_to_ms_ratio};'
-        - switch.turn_off: pump_3      
-        # 30s minimum delay before trying adding again.
-        - delay: 30s
+          - script.execute: mixer_pulse
+          - switch.turn_on: pump_2
+          - delay: !lambda 'return id(nutrient_a_pulse_ml).state * ${pump2_ml_to_ms_ratio};'
+          - switch.turn_off: pump_2
+          - switch.turn_on: pump_3
+          - delay: !lambda 'return id(nutrient_b_pulse_ml).state * ${pump3_ml_to_ms_ratio};'
+          - switch.turn_off: pump_3
+          - delay: 30s
 
-  # Mixer pulse
+  # Pulse mixer (5 minutes)
   - id: mixer_pulse
     mode: restart
     then:
@@ -483,8 +573,7 @@ script:
       - switch.turn_off: mixer
 
 interval:
-
-  # PH check loop
+  # Boucle régulation PH
   - interval: 1min
     then:
       if:
@@ -498,7 +587,7 @@ interval:
         then:
           script.execute: ph_minus_pulse
 
-  # EC check loop
+  # Boucle régulation EC
   - interval: 1min
     then:
       if:
@@ -512,7 +601,7 @@ interval:
         then:
           script.execute: nutrient_pulse
 
-  # Mixer loop
+  # Boucle mixer périodique (toutes les heures)
   - interval: 60min
     then:
       if:
