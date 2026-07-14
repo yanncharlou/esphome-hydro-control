@@ -16,10 +16,10 @@ esphome:
 packages:
   nutrient_limit: !include nutrient_limit.yaml
   ph_minus_limit: !include ph_minus_limit.yaml
+  # ec_measurement: !include ec_generic_tds_meter_v1_0.yaml   # For DFRobot TDS SEN0244 (or cheap clone like "TDS Meter V1.0")  0~1000ppm / 0~2ms/cm2
+  ec_measurement: !include ec_dfrobot_dfr0300.yaml   # For DFRobot Gravity v2.0  2 (0~20ms/cm)
 
 substitutions:
-  ec_ratio: "2.18"
-
   # 60s = 93.5ml -> ratio = 60000 / 93.5 = 645.2
   pump1_ml_to_ms_ratio: "645.2"
   # 60s = 103.8ml -> ratio = 60000 / 103.8 = 578.03
@@ -45,17 +45,6 @@ wifi:
   # Ajouter les réseaux dans un fichier séparé
 
 globals:
-  # EC calibration (raw value with only median filter)
-  - id: ec_raw_median
-    type: float
-    restore_value: false
-    initial_value: '0.0'
-
-  - id: ec_base
-    type: float
-    restore_value: false
-    initial_value: '0.0'
-
   # PH : tension brute après lissage (pour affichage page 2 et calibration)
   - id: ph_raw_median
     type: float
@@ -225,29 +214,8 @@ sensor:
           return ph;
 
   # -------------------------
-  # Capteur EC
+  # Capteur EC : défini dans le fichier inclus par le package ec_measurement (cf. packages: en tête)
   # -------------------------
-  - platform: ads1115
-    multiplexer: 'A1_GND'
-    gain: 4.096
-    name: "EC"
-    update_interval: 1s
-    id: ec_sensor
-    accuracy_decimals: 0
-    filters:
-      - median:
-          window_size: 30
-          send_every: 1
-          send_first_at: 1
-      - lambda: |-
-          id(ec_raw_median) = x;
-          float compensationCoefficient = 1.0 + 0.02 * (id(temperature_sensor).state - 25.0);
-          float compensationVoltage = x / compensationCoefficient;
-          float tdsValue = (133.42 * compensationVoltage * compensationVoltage * compensationVoltage
-                           - 255.86 * compensationVoltage * compensationVoltage
-                           + 857.39 * compensationVoltage) * 0.5;
-          id(ec_base) = tdsValue;
-          return tdsValue * ${ec_ratio};
 
   # -------------------------
   # Température

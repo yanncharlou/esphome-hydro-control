@@ -1,0 +1,56 @@
+# -------------------------------------------------------------------------
+# Mesure d'EC / TDS — sonde analogique TDS générique (formule DFRobot Gravity)
+# lue via l'ADS1115 (entrée A1_GND).
+#
+# Ce fichier est inclus comme package dans main.yaml. Pour changer de capteur,
+# il suffit de repointer la ligne `ec_measurement: !include ...` dans main.yaml.
+#
+# Contrat exposé (à fournir par tout fichier EC de remplacement) :
+#   - id(ec_sensor)      : sensor EC, state en µS/cm (régulation, erreurs, écran)
+#   - id(ec_raw_median)  : tension brute médiane, affichée page 2 (calibration)
+#   - id(ec_base)        : TDS avant application de ${ec_ratio}, affiché page 2
+#
+# Dépendances fournies par main.yaml : hub ads1115 (0x48), temperature_sensor.
+# -------------------------------------------------------------------------
+
+substitutions:
+  # Calibration EC (surchargeable par le device parent)
+  ec_ratio: "2.18"
+
+globals:
+  # EC calibration (raw value with only median filter)
+  - id: ec_raw_median
+    type: float
+    restore_value: false
+    initial_value: '0.0'
+
+  - id: ec_base
+    type: float
+    restore_value: false
+    initial_value: '0.0'
+
+sensor:
+  # -------------------------
+  # Capteur EC
+  # -------------------------
+  - platform: ads1115
+    multiplexer: 'A1_GND'
+    gain: 4.096
+    name: "EC"
+    update_interval: 1s
+    id: ec_sensor
+    accuracy_decimals: 0
+    filters:
+      - median:
+          window_size: 30
+          send_every: 1
+          send_first_at: 1
+      - lambda: |-
+          id(ec_raw_median) = x;
+          float compensationCoefficient = 1.0 + 0.02 * (id(temperature_sensor).state - 25.0);
+          float compensationVoltage = x / compensationCoefficient;
+          float tdsValue = (133.42 * compensationVoltage * compensationVoltage * compensationVoltage
+                           - 255.86 * compensationVoltage * compensationVoltage
+                           + 857.39 * compensationVoltage) * 0.5;
+          id(ec_base) = tdsValue;
+          return tdsValue * ${ec_ratio};
