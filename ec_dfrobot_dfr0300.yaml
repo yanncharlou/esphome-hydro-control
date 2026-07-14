@@ -1,0 +1,150 @@
+# -------------------------------------------------------------------------
+# Mesure d'EC — sonde DFRobot Gravity DFR0300 « EC Meter (K=1) V2.0 »
+# lue via l'ADS1115 (entrée A1_GND).
+#
+# Ce fichier est inclus comme package dans main.yaml. Pour changer de capteur,
+# il suffit de repointer la ligne `ec_measurement: !include ...` dans main.yaml.
+#
+# Contrat exposé (identique aux autres fichiers EC de ce projet) :
+#   - id(ec_sensor)      : sensor EC, state en µS/cm (régulation, erreurs, écran)
+#   - id(ec_raw_median)  : tension brute médiane (V), affichée page 2
+#   - id(ec_base)        : EC brute compensée température, avant K (µS/cm),
+#                          affichée page 2 et utilisée par la calibration
+#
+# Dépendances fournies par main.yaml : hub ads1115 (0x48), temperature_sensor.
+#
+# Câblage : sonde Gravity 3 fils, sortie 0–3,4 V -> ADS1115 A1 (gain 4.096).
+# ⚠ Alimenter l'ADS1115 en 5 V (l'entrée max est VDD+0,3 V ; 3,4 V frôle la
+#   limite si l'ADS est en 3,3 V).
+#
+# Formule DFRobot (lib DFRobot_EC) :
+#   EC(mS/cm) = 1000 * V(mV) / (RES2 * ECREF) * K   avec RES2=820, ECREF=200
+#   Compensation température : EC = EC / (1 + 0,0185 * (T - 25))
+#
+# Calibration 2 points, K stockés en flash (façon calibration pH) :
+#   - Point bas  : tampon 1413 µS/cm   -> ec_kvalue_low
+#   - Point haut : tampon 12,88 mS/cm  -> ec_kvalue_high
+#   Bascule automatique de plage à la lecture (hystérésis 2,0–2,5 mS/cm).
+#   Procédure : plonger la sonde dans le tampon, attendre stabilisation de
+#   ECbase (page 2), appuyer sur le bouton correspondant.
+# -------------------------------------------------------------------------
+
+globals:
+  # Constantes de calibration K (persistées en flash)
+  - id: ec_kvalue_low
+    type: float
+    restore_value: true
+    initial_value: '1.0'
+
+  - id: ec_kvalue_high
+    type: float
+    restore_value: true
+    initial_value: '1.0'
+
+  # Plage active courante (0 = basse, 1 = haute) pour l'hystérésis de bascule
+  - id: ec_range_high
+    type: float
+    restore_value: false
+    initial_value: '0.0'
+
+  # Tension brute médiane (V), pour affichage page 2
+  - id: ec_raw_median
+    type: float
+    restore_value: false
+    initial_value: '0.0'
+
+  # EC brute compensée température, avant K (µS/cm) : affichage + calibration
+  - id: ec_base
+    type: float
+    restore_value: false
+    initial_value: '0.0'
+
+sensor:
+  # -------------------------
+  # Capteur EC (DFRobot DFR0300)
+  # -------------------------
+  - platform: ads1115
+    multiplexer: 'A1_GND'
+    gain: 4.096
+    name: "EC"
+    update_interval: 1s
+    id: ec_sensor
+    accuracy_decimals: 0
+    filters:
+      - median:
+          window_size: 30
+          send_every: 1
+          send_first_at: 1
+      - lambda: |-
+          id(ec_raw_median) = x;                          // tension ADS (V)
+          float T = id(temperature_sensor).state;
+          if (isnan(T) || T == 0.0f) T = 25.0f;
+          float tempCoeff = 1.0f + 0.0185f * (T - 25.0f);
+
+          // DFR0300 : EC(mS/cm) = 1000 * V(mV) / (RES2 * ECREF), RES2=820, ECREF=200
+          float rawEC_ms = 1000.0f * (x * 1000.0f) / (820.0f * 200.0f);
+
+          // EC brute compensée, avant K, en µS/cm (affichage page 2 + calibration)
+          id(ec_base) = (rawEC_ms * 1000.0f) / tempCoeff;
+
+          // Bascule automatique de plage (hystérésis 2.0–2.5 mS/cm), façon DFRobot_EC
+          float kcur = id(ec_range_high) ? id(ec_kvalue_high) : id(ec_kvalue_low);
+          float valueTemp = rawEC_ms * kcur;
+          if      (valueTemp > 2.5f) id(ec_range_high) = 1.0f;
+          else if (valueTemp < 2.0f) id(ec_range_high) = 0.0f;
+
+          float kvalue = id(ec_range_high) ? id(ec_kvalue_high) : id(ec_kvalue_low);
+          return (rawEC_ms * kvalue * 1000.0f) / tempCoeff;   // µS/cm
+
+  # -------------------------
+  # Sensors diagnostic calibration EC (visibles dans HA)
+  # -------------------------
+  - platform: template
+    name: "EC cal K bas (1413 µS)"
+    id: ec_kvalue_low_sensor
+    lambda: 'return id(ec_kvalue_low);'
+    update_interval: 60s
+    accuracy_decimals: 4
+
+  - platform: template
+    name: "EC cal K haut (12.88 mS)"
+    id: ec_kvalue_high_sensor
+    lambda: 'return id(ec_kvalue_high);'
+    update_interval: 60s
+    accuracy_decimals: 4
+
+button:
+  # -------------------------
+  # Calibration EC 2 points
+  # K = valeur_tampon(µS/cm) / ec_base (ec_base est déjà compensé à 25°C,
+  # donc la calibration peut être faite à n'importe quelle température).
+  # -------------------------
+  - platform: template
+    name: "Calibrer EC point bas (1413 µS)"
+    icon: "mdi:test-tube"
+    on_press:
+      then:
+        - lambda: |-
+            if (id(ec_base) > 1.0f) {
+              id(ec_kvalue_low) = 1413.0f / id(ec_base);
+              ESP_LOGI("ec_cal", "Cal EC bas 1413: base=%.1f -> Klow=%.4f",
+                       id(ec_base), id(ec_kvalue_low));
+            } else {
+              ESP_LOGW("ec_cal", "Cal EC bas ignoree : ec_base trop faible (%.1f)", id(ec_base));
+            }
+        - component.update: ec_kvalue_low_sensor   # publication immédiate
+
+  - platform: template
+    name: "Calibrer EC point haut (12.88 mS)"
+    icon: "mdi:test-tube"
+    on_press:
+      then:
+        - lambda: |-
+            if (id(ec_base) > 1.0f) {
+              id(ec_kvalue_high) = 12880.0f / id(ec_base);
+              ESP_LOGI("ec_cal", "Cal EC haut 12880: base=%.1f -> Khigh=%.4f",
+                       id(ec_base), id(ec_kvalue_high));
+            } else {
+              ESP_LOGW("ec_cal", "Cal EC haut ignoree : ec_base trop faible (%.1f)", id(ec_base));
+            }
+        - component.update: ec_kvalue_high_sensor  # publication immédiate

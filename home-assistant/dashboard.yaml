@@ -14,29 +14,29 @@ views:
             max: 2000
             needle: true
             name: EC
-            unit: ' '
-            gauge_template: '{{ states.sensor.hydro_control_1_ec.state  | round(0) }}'
+            unit: " "
+            gauge_template: "{{ states.sensor.hydro_control_1_ec.state  | round(0) }}"
             segments:
               - from: 0
-                color: '#014a96'
+                color: "#014a96"
               - from: 800
-                color: '#1abc9c '
+                color: "#1abc9c "
               - from: 1800
-                color: '#ff4000'
+                color: "#ff4000"
           - type: gauge
             entity: sensor.hydro_control_1_ph
             min: 4
             max: 10
             needle: true
             name: PH
-            unit: ' '
+            unit: " "
             segments:
               - from: 0
-                color: '#ec7063'
+                color: "#ec7063"
               - from: 5.5
-                color: '#1abc9c '
+                color: "#1abc9c "
               - from: 6.5
-                color: '#ec7063'
+                color: "#ec7063"
           - type: gauge
             entity: sensor.hydro_control_1_temperature_2
             max: 35
@@ -78,7 +78,7 @@ views:
             type: sensor
             entity: sensor.hydro_control_1_ec
             detail: 2
-            unit: ' '
+            unit: " "
             hours_to_show: 48
             name: EC
             icon: mdi:cup-water
@@ -86,7 +86,7 @@ views:
             type: sensor
             entity: sensor.hydro_control_1_ph
             detail: 2
-            unit: ' '
+            unit: " "
             hours_to_show: 48
             name: PH
             icon: mdi:cup-water
@@ -94,7 +94,7 @@ views:
             type: sensor
             entity: sensor.hydro_control_1_temperature_2
             detail: 2
-            unit: ' '
+            unit: " "
             hours_to_show: 48
             name: Température
             icon: mdi:cup-water
@@ -151,11 +151,11 @@ views:
             name: Pulse PH-
           - type: divider
           - entity: button.hydro_control_1_pump_1_calibration_pulse
-            name: 'Pump #1 calibration pulse'
+            name: "Pump #1 calibration pulse"
           - entity: button.hydro_control_1_pump_2_calibration_pulse
-            name: 'Pump #2 calibration pulse'
+            name: "Pump #2 calibration pulse"
           - entity: button.hydro_control_1_pump_3_calibration_pulse
-            name: 'Pump #3 calibration pulse'
+            name: "Pump #3 calibration pulse"
           - type: divider
           - entity: switch.hydro_control_1_pompe_ph
             name: NE PAS UTILISER - Pompe PH-
@@ -184,3 +184,14 @@ views:
         title: Calibration PH
         show_header_toggle: false
         state_color: false
+      - type: entities
+        entities:
+          - entity: button.controle_hydroponique_1_calibrer_ec_point_bas_1413_ms
+            name: Calibrer point bas (1413 µS)
+          - entity: sensor.controle_hydroponique_1_ec_cal_k_bas_1413_ms
+            name: K point bas
+          - entity: button.controle_hydroponique_1_calibrer_ec_point_haut_12_88_ms
+            name: Calibrer point haut (12.88 mS)
+          - entity: sensor.controle_hydroponique_1_ec_cal_k_haut_12_88_ms
+            name: K point haut
+        title: Calibration EC
