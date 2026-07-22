@@ -433,6 +433,7 @@ number:
     optimistic: true
     restore_value: true
     initial_value: 5
+    mode: box
 
   - platform: template
     name: Nutrient A pulse
@@ -444,6 +445,7 @@ number:
     optimistic: true
     restore_value: true
     initial_value: 25
+    mode: box
 
   - platform: template
     name: Nutrient B pulse
@@ -455,6 +457,7 @@ number:
     optimistic: true
     restore_value: true
     initial_value: 35
+    mode: box
 
   - platform: template
     name: PH error below
